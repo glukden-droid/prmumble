@@ -121,6 +121,22 @@ sudo docker exec prmurmur15 python3 /opt/scripts/grant_bot.py <ник бота>
 разрешения на корне, в каналах игровых серверов и команд (после `all deny`).
 После первой регистрации бота нужно переподключить. mumo ботов не трогает.
 
+### Местный голос между командами
+
+Обычную (местную) речь можно сделать слышной и противнику; клиент PR
+затухает её по расстоянию, поэтому слышат только враги рядом. Для этого
+связываются Team 1 и Team 2 игрового сервера (как `--linkteams` в старом
+`prbf2man.py`). Рация отрядов и командирские каналы не затрагиваются, а
+позиции игроков для HUD по-прежнему уходят только своей команде.
+
+```bash
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py status
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py on main0    # или: on (все)
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py off main0
+```
+
+Настройка хранится в базе и переживает перезапуск.
+
 ## 5. Правки prbf2.py
 
 Порт на Python 3 (`docs/port_prbf2.py`) плюс то, что нашлось в работе:
@@ -224,6 +240,7 @@ data.old`, затем первая установка.
 | `scripts/setup_channels.py` | дерево каналов, ACL и карта для mumo (Ice) |
 | `scripts/check_acl.py` | фактические права подключённых игроков |
 | `scripts/grant_bot.py` | права бота: войти, слушать, говорить везде |
+| `scripts/link_teams.py` | местный голос между командами: вкл/выкл |
 | `scripts/voice_probe.py` | что сервер пересылает в голосе |
 | `scripts/hud_dump.py` | что PRMumble отдаёт HUD (Windows, ПК с игрой) |
 | `scripts/entrypoint.sh` | запуск сервера и mumo в контейнере |

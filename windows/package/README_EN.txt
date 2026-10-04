@@ -56,6 +56,7 @@ of team and squad channels.
   set-superuser-password.bat   sets the SuperUser (owner) password
   grant-bot.bat                gives a bot rights in every channel
   check-acl.bat                shows what a connected player may do
+  link-teams.bat               cross-team local voice on/off (see 10)
   python\                      embedded Python 3.11 with ZeroC Ice
   mumo\                        mumo, its config mumo.ini, module prbf2
   scripts\                     the Python scripts behind the .bat files
@@ -243,6 +244,15 @@ Normal log lines that are NOT errors:
       The PR client tries to join its squad itself; the server refuses
       and mumo moves the player a moment later.
   "Zeroconf ..."           harmless.
+
+Cross-team local voice
+  Normal (local) speech can also reach the enemy team; the PR client fades
+  it with distance, so only enemies nearby hear it. Squad radio and
+  commander channels are not affected; positions still go to the own team.
+      link-teams.bat status
+      link-teams.bat on  main0        (no name = every game server)
+      link-teams.bat off main0
+  Stored in the database, survives restarts.
 
 Adding a game server later: setup-channels.bat only works on an empty
 server. Either start over (see 11, "Start over") or create the channels

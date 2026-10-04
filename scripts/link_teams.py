@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+# Switches cross-team local voice on or off: links Team 1 and Team 2 of a
+# game server, so normal (local) speech also reaches the enemy team. The PR
+# client fades it with distance (positional audio), so only enemies nearby
+# hear it. Squad radio and commander channels are not affected. Player
+# positions for the HUD still go to the own team only (server patch).
+#
+#   link_teams.py status
+#   link_teams.py on  [game ...]     game = mumo name from prbf2.ini (main0)
+#   link_teams.py off [game ...]     no game = every game server
+#
+# Docker:  docker exec prmurmur15 python3 /opt/scripts/link_teams.py on main0
+# Windows: link-teams.bat on main0
+# The links live in the database and survive restarts.
+
+import os
+import sys
+import configparser
+import Ice
+
+SLICE = os.environ.get("PRMUMBLE_SLICE", "/usr/share/MumbleServer.ice")
+MUMO_INI = os.environ.get("PRMUMBLE_MUMO_INI", "/data/mumo/mumo.ini")
+PRBF2_INI = os.environ.get("PRMUMBLE_PRBF2_INI", "/data/mumo/modules-enabled/prbf2.ini")
+SERVER_ID = 1
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in ("on", "off", "status"):
+        sys.exit("usage: link_teams.py status | on [game ...] | off [game ...]")
+    action, wanted = sys.argv[1], sys.argv[2:]
+
+    games = configparser.ConfigParser()
+    games.read(PRBF2_INI, encoding="utf-8")
+    sections = [s for s in games.sections() if s != "prbf2" and games.has_option(s, "opfor")]
+    if not sections:
+        sys.exit("link_teams: no game servers in %s" % PRBF2_INI)
+    names = {games.get(s, "name", fallback=s): s for s in sections}
+    unknown = [g for g in wanted if g not in names]
+    if unknown:
+        sys.exit("link_teams: unknown game(s) %s; known: %s" % (", ".join(unknown), ", ".join(names)))
+    selected = [names[g] for g in wanted] if wanted else sections
+
+    cfg = configparser.ConfigParser()
+    cfg.read(MUMO_INI)
+    Ice.loadSlice("", ["-I" + Ice.getSliceDir(), SLICE])
+    import MumbleServer as M
+    props = Ice.createProperties()
+    props.setProperty("Ice.ImplicitContext", "Shared")
+    props.setProperty("Ice.Default.EncodingVersion", "1.0")
+    init = Ice.InitializationData()
+    init.properties = props
+    ic = Ice.initialize(init)
+    ic.getImplicitContext().put("secret", cfg["ice"]["secret"])
+    srv = M.MetaPrx.checkedCast(ic.stringToProxy(
+        "Meta:tcp -h %s -p %s" % (cfg["ice"]["host"], cfg["ice"]["port"]))).getServer(SERVER_ID)
+    chans = srv.getChannels()
+
+    for s in selected:
+        name = games.get(s, "name", fallback=s)
+        t1, t2 = games.getint(s, "opfor"), games.getint(s, "blufor")
+        if t1 not in chans or t2 not in chans:
+            print("%-8s team channels %d/%d not found, skipped" % (name, t1, t2))
+            continue
+        title = chans[chans[t1].parent].name if chans[t1].parent in chans else "?"
+        state = srv.getChannelState(t1)
+        linked = t2 in state.links
+        if action != "status":
+            want = action == "on"
+            if want != linked:
+                state.links = ([l for l in state.links if l != t2] + ([t2] if want else []))
+                srv.setChannelState(state)
+                linked = want
+        print("%-8s %-40s cross-team local voice: %s" % (name, title[:40], "ON" if linked else "off"))
+    ic.destroy()
+
+
+if __name__ == "__main__":
+    main()

@@ -126,6 +126,22 @@ sets the permissions on Root, the game server and the team channels (after
 `all deny`). Reconnect the bot after its first registration. mumo leaves bots
 alone.
 
+### Cross-team local voice
+
+Normal (local) speech can also reach the enemy team; the PR client fades it
+with distance, so only enemies nearby hear it. It links Team 1 and Team 2 of
+a game server (as `--linkteams` in the old `prbf2man.py`). Squad radio and
+commander channels are not affected, and player positions for the HUD still
+go to the own team only.
+
+```bash
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py status
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py on main0    # or: on (all)
+sudo docker exec prmurmur15 python3 /opt/scripts/link_teams.py off main0
+```
+
+The setting is stored in the database and survives restarts.
+
 ## 5. Changes in prbf2.py
 
 Python 3 port (`docs/port_prbf2.py`) plus what came up in production:
@@ -231,6 +247,7 @@ use the Docker paths.
 | `scripts/setup_channels.py` | channel tree, ACL and mumo map (Ice) |
 | `scripts/check_acl.py` | effective permissions of connected players |
 | `scripts/grant_bot.py` | bot rights: enter, listen, speak everywhere |
+| `scripts/link_teams.py` | cross-team local voice on/off |
 | `scripts/voice_probe.py` | what the server relays in voice packets |
 | `scripts/hud_dump.py` | what PRMumble gives the HUD (Windows, game PC) |
 | `scripts/entrypoint.sh` | starts server and mumo in the container |

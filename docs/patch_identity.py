@@ -45,21 +45,31 @@ src = src[:start] + body + src[end:]
 #
 #    Unlike PRMurmur, the position is NOT broadcast: a modified client could
 #    collect enemy positions (radar). It goes only to the users in the
-#    sender's channel and the channels linked to it - his own team (team
-#    channels are linked to their Commander and squad channels). That is
-#    exactly the set the PR client reads for the HUD, and teammates see each
-#    other on the in-game map anyway. The rest of the message is handled as
-#    usual, without the position.
+#    sender's channel and the channels linked to it (that is the set the PR
+#    client reads for the HUD) AND in the sender's own team. The team is the
+#    channel on the 4th level of the tree (Root > PR BF2 Game Servers > game >
+#    Team N, see scripts/setup_channels.py), so even when Team 1 and Team 2
+#    are linked for cross-team local voice (scripts/link_teams.py) the enemy
+#    never gets positions. Teammates see each other on the in-game map
+#    anyway. The rest of the message is handled as usual, without position.
 POSITION_RELAY = r"""
-\1// PR: in-game position only to the sender's own and linked channels
+\1// PR: in-game position only to linked channels of the sender's own team
 \1if (msg.position_size() > 0) {
 \1	MumbleProto::UserState mpPos;
 \1	mpPos.set_session(pDstServerUser->uiSession);
 \1	*mpPos.mutable_position() = msg.position();
 \1	msg.clear_position();
-\1	const QSet< Channel * > team = pDstServerUser->cChannel->allLinks();
+\1	auto teamOf = [](Channel *c) {
+\1		QList< Channel * > chain;
+\1		for (Channel *p = c; p; p = p->cParent)
+\1			chain.prepend(p);
+\1		return chain.size() > 3 ? chain.at(3) : c;
+\1	};
+\1	Channel *myTeam                = teamOf(pDstServerUser->cChannel);
+\1	const QSet< Channel * > linked = pDstServerUser->cChannel->allLinks();
 \1	for (ServerUser *u : qhUsers) {
-\1		if (u != pDstServerUser && u->sState == ServerUser::Authenticated && team.contains(u->cChannel))
+\1		if (u != pDstServerUser && u->sState == ServerUser::Authenticated && linked.contains(u->cChannel)
+\1			&& teamOf(u->cChannel) == myTeam)
 \1			sendMessage(u, mpPos);
 \1	}
 \1}
