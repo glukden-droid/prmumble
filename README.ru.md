@@ -157,9 +157,9 @@ sudo bash scripts/initialsetup.sh         # build, up, каналы, перез�
 sudo docker exec prmurmur15 mumble-server -ini /data/mumble-server.ini -supw 'пароль'
 ```
 
-Смените секрет Ice (`icesecretread`/`icesecretwrite` в
-`data/mumble-server.ini` и `secret` в `data/mumo/mumo.ini`, одинаково) и
-перезапустите: `sudo docker compose restart`.
+Секрет Ice (`prmurmurpassword` в `data/mumble-server.ini` и
+`data/mumo/mumo.ini`) можно оставить: Ice слушает только 127.0.0.1. Если
+меняете — одинаково в обоих файлах, затем `sudo docker compose restart`.
 
 Обновление кода без потери каналов (сборка 10–20 минут при работающем
 сервере, перерыв — только на перезапуск):

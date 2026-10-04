@@ -163,9 +163,10 @@ sudo bash scripts/initialsetup.sh         # build, up, channels, restart
 sudo docker exec prmurmur15 mumble-server -ini /data/mumble-server.ini -supw 'password'
 ```
 
-Change the Ice secret (`icesecretread`/`icesecretwrite` in
-`data/mumble-server.ini` and `secret` in `data/mumo/mumo.ini`, the same
-value) and restart: `sudo docker compose restart`.
+The Ice secret (`prmurmurpassword` in `data/mumble-server.ini` and
+`data/mumo/mumo.ini`) may stay as it is: Ice listens on 127.0.0.1 only. If
+you change it, use the same value in both files and run
+`sudo docker compose restart`.
 
 Updating the code without losing channels (the build takes 10–20 minutes
 while the server keeps running; downtime only for the restart):

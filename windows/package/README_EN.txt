@@ -121,12 +121,13 @@ Step 5 - set the SuperUser password
       set-superuser-password.bat YourStrongPassword
   SuperUser is the owner account (see 8).
 
-Step 6 - change the Ice secret (recommended)
-  The Ice secret protects the local admin interface mumo uses. Pick a
-  random string and put the SAME value in:
+Step 6 - Ice secret (optional)
+  The Ice secret (prmurmurpassword) protects the local admin interface mumo
+  uses. Ice listens on 127.0.0.1 only, so the default is fine. If you change
+  it, put the SAME value in:
       mumble-server.ini   icesecretread= and icesecretwrite=
       mumo\mumo.ini       secret =
-  Then stop.bat and start.bat.
+  then stop.bat and start.bat.
 
 Step 7 - test
   Start Project Reality, join one of your game servers, open the PR Mumble
