@@ -191,7 +191,9 @@ data.old`, затем первая установка.
 `setup-channels`, `grant-bot`, `check-acl`, `set-superuser-password`). Ничего
 устанавливать не нужно. Инструкция внутри: `README_RU.txt` и `README_EN.txt`.
 
-Сборка: Actions → `windows-build` → Run workflow; архив — артефакт запуска.
+Скачать: [Releases](../../releases) (`PRMumble-Server-1.5.857-win64.zip`).
+Собрать самому: Actions → `windows-build` → Run workflow; архив — артефакт
+запуска.
 Используется готовое окружение проекта Mumble (vcpkg
 `x64-windows-static-md`, MSVC). Сборка сама проверяет пакет: сервер, Ice,
 создание каналов, запуск mumo с prbf2. Исходники пакета — `windows/package/`.

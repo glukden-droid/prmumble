@@ -198,8 +198,9 @@ files (`start`, `stop`, `setup-channels`, `grant-bot`, `check-acl`,
 `set-superuser-password`). Nothing to install. The guide is inside:
 `README_EN.txt` and `README_RU.txt`.
 
-Build: Actions → `windows-build` → Run workflow; the archive is the run's
-artifact. It uses the prebuilt environment of the Mumble project (vcpkg
+Download: [Releases](../../releases) (`PRMumble-Server-1.5.857-win64.zip`).
+Build yourself: Actions → `windows-build` → Run workflow; the archive is the
+run's artifact. It uses the prebuilt environment of the Mumble project (vcpkg
 `x64-windows-static-md`, MSVC). The build tests the package itself: server,
 Ice, channel creation, mumo with prbf2. Package sources: `windows/package/`.
 The scripts take their paths from `PRMUMBLE_*` variables; without them they
