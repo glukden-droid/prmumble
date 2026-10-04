@@ -1,0 +1,154 @@
+# Builds the Windows package of the PR Mumble server on a GitHub Windows
+# runner: Mumble 1.5.857 server (static, Ice) with docs/patch_identity.py,
+# embedded Python 3.11 with ZeroC Ice, upstream mumo with prbf2, scripts.
+
+name: windows-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - 'docs/patch_identity.py'
+      - 'mumo/**'
+      - 'scripts/*.py'
+      - '.github/workflows/windows-build.yml'
+
+env:
+  MUMBLE_VERSION: "1.5.857"
+  MUMBLE_ENV: "mumble_env.x64-windows-static-md.2025-07-29.9578b83ca8"
+  MUMBLE_ENV_SOURCE: "https://github.com/mumble-voip/vcpkg/releases/download/2025-07_qt5"
+  PYTHON_EMBED: "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
+  MUMO_REF: "master"
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Mumble sources + PR patch
+        shell: bash
+        run: |
+          curl -fsSL -o mumble.tar.gz "https://github.com/mumble-voip/mumble/releases/download/v${MUMBLE_VERSION}/mumble-${MUMBLE_VERSION}.tar.gz"
+          tar -xzf mumble.tar.gz
+          mv "mumble-${MUMBLE_VERSION}" mumble
+          python docs/patch_identity.py mumble
+          grep -n "PR:" mumble/src/murmur/Messages.cpp mumble/src/Mumble.proto
+
+      - name: Build environment (vcpkg, prebuilt by Mumble)
+        shell: bash
+        run: |
+          curl -fsSL -o env.7z "${MUMBLE_ENV_SOURCE}/${MUMBLE_ENV}.7z"
+          7z x env.7z -oenv_tmp > /dev/null
+          # the archive holds one top folder
+          top="$(ls -d env_tmp/*/ | head -1)"
+          mv "$top" build_env
+          ls build_env
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure and build the server
+        shell: pwsh
+        run: |
+          $envDir = (Resolve-Path build_env).Path -replace '\\','/'
+          cmake -G Ninja -S mumble -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl `
+            "-DCMAKE_TOOLCHAIN_FILE=$envDir/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md `
+            "-DIce_HOME=$envDir/installed/x64-windows-static-md" `
+            -Dstatic=ON -Dclient=OFF -Dserver=ON -Dice=ON -Dzeroconf=OFF `
+            -Dtests=OFF -Dpackaging=OFF -Dwarnings-as-errors=OFF `
+            "-DBUILD_NUMBER=$($env:MUMBLE_VERSION.Split('.')[-1])"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cmake --build build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Get-ChildItem build -Filter mumble-server.exe -Recurse | Select-Object FullName, Length
+
+      - name: Assemble package
+        shell: pwsh
+        run: |
+          $dist = "dist/PRMumble-Server-$env:MUMBLE_VERSION-win64"
+          New-Item -ItemType Directory -Force $dist, "$dist/scripts", "$dist/mumo" | Out-Null
+          Copy-Item windows/package/* $dist -Recurse -Force
+          $exe = Get-ChildItem build -Filter mumble-server.exe -Recurse | Select-Object -First 1
+          Copy-Item $exe.FullName $dist
+          Copy-Item mumble/src/murmur/MumbleServer.ice $dist
+          Copy-Item scripts/setup_channels.py, scripts/grant_bot.py, scripts/check_acl.py "$dist/scripts"
+
+          # embedded Python with ZeroC Ice
+          Invoke-WebRequest $env:PYTHON_EMBED -OutFile py.zip
+          Expand-Archive py.zip "$dist/python"
+          python -m pip install --upgrade pip
+          python -m pip install zeroc-ice==3.7.* --target "$dist/python/Lib/site-packages"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $pth = Get-ChildItem "$dist/python" -Filter "python3*._pth" | Select-Object -First 1
+          Set-Content $pth.FullName -Encoding ascii -Value @(
+            "python311.zip", ".", "Lib\site-packages", "..\mumo", "import site")
+
+          # mumo upstream + prbf2
+          Invoke-WebRequest "https://github.com/mumble-voip/mumo/archive/$env:MUMO_REF.zip" -OutFile mumo.zip
+          Expand-Archive mumo.zip mumo_src
+          Copy-Item "mumo_src/mumo-$env:MUMO_REF/*" "$dist/mumo" -Recurse -Force
+          Remove-Item "$dist/mumo/modules-enabled/*" -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force "$dist/mumo/modules-enabled" | Out-Null
+          Copy-Item mumo/modules/prbf2.py "$dist/mumo/modules/prbf2.py" -Force
+          Copy-Item windows/package/mumo/mumo.ini "$dist/mumo/mumo.ini" -Force
+
+          # Windows line endings for the batch files and texts
+          Get-ChildItem $dist -Include *.bat,*.txt,*.ini -Recurse -File | ForEach-Object {
+            $t = [IO.File]::ReadAllText($_.FullName) -replace "`r?`n", "`r`n"
+            # UTF-8 with BOM for the Russian guide, so Notepad shows Cyrillic
+            $bom = $_.Name -like "*_RU.txt"
+            [IO.File]::WriteAllText($_.FullName, $t, (New-Object Text.UTF8Encoding($bom)))
+          }
+          "DIST=$dist" | Out-File -Append $env:GITHUB_ENV
+
+      - name: Smoke test (server, channels, mumo)
+        shell: pwsh
+        run: |
+          Set-Location $env:DIST
+          @("t0 | Test Server A | 10.0.0.1:16567", "t1 | Test Server B | 10.0.0.2:16567") | Set-Content games.txt
+          $srv = Start-Process ./mumble-server.exe -ArgumentList "-ini", "mumble-server.ini" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 40; $i++) {
+            try { (New-Object Net.Sockets.TcpClient('127.0.0.1', 6504)).Close(); $ok = $true; break } catch { Start-Sleep 1 }
+          }
+          if (-not $ok) { Get-Content mumble-server.log -ErrorAction SilentlyContinue; throw "server did not open Ice" }
+          ./python/python.exe -c "import Ice; print('Ice', Ice.stringVersion())"
+          $env:PRMUMBLE_SLICE = "$PWD/MumbleServer.ice"
+          $env:PRMUMBLE_MUMO_INI = "$PWD/mumo/mumo.ini"
+          $env:PRMUMBLE_PRBF2_INI = "$PWD/mumo/modules-enabled/prbf2.ini"
+          $env:PRMUMBLE_GAMES = "$PWD/games.txt"
+          ./python/python.exe scripts/setup_channels.py
+          if ($LASTEXITCODE) { throw "setup_channels failed" }
+          Push-Location mumo
+          (Get-Content mumo.ini) -replace "^level = .*", "level = 10" -replace "^file = .*", "file = mumo_test.log" | Set-Content mumo_test.ini
+          $mumo = Start-Process ../python/python.exe -ArgumentList "mumo.py", "-a", "-i", "mumo_test.ini" -PassThru -NoNewWindow
+          Start-Sleep 10
+          Pop-Location
+          Get-Content mumo/mumo_test.log
+          if ($mumo.HasExited) { throw "mumo exited" }
+          if (-not (Select-String -Path mumo/mumo_test.log -Pattern "Module .prbf2. started" -Quiet)) { throw "prbf2 not started" }
+          if (-not (Select-String -Path mumo/mumo_test.log -Pattern "Setting callbacks" -Quiet)) { throw "mumo not connected to Ice" }
+          Stop-Process -Id $mumo.Id -Force
+          Stop-Process -Id $srv.Id -Force
+          Start-Sleep 2
+          # leave a clean package: no test data
+          Remove-Item murmur.sqlite*, mumble-server.log, mumo/mumo.log, mumo/mumo_test.ini, mumo/mumo_test.log, mumo/mumo.pid, mumo/modules-enabled/prbf2.ini -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+          git -C $env:GITHUB_WORKSPACE show HEAD:windows/package/games.txt | Set-Content games.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PRMumble-Server-${{ env.MUMBLE_VERSION }}-win64
+          path: dist/

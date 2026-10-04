@@ -1,0 +1,7 @@
+data/
+data.old*/
+*.sqlite
+*.log
+windows/dist/
+__pycache__/
+*.pyc

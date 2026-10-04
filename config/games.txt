@@ -1,0 +1,8 @@
+# Game servers that get their own channels, one per line:
+#   mumo name | channel title | game server ip:port
+# mumo name: short, unique, latin letters and digits (main0, main1, ...).
+# ip:port: the address players join the GAME server with; several addresses
+# for one server are separated by commas.
+# Copied to data/games.txt by scripts/initialsetup.sh; edit data/games.txt.
+main0 | [EU] My PR Server #1 | 203.0.113.10:16567
+main1 | [EU] My PR Server #2 | 203.0.113.10:16568

@@ -1,0 +1,19 @@
+# The PR Mumble server (1.5.857 with the PR patch) and mumo. Ports come from
+# data/mumble-server.ini: 64740, Ice 6504 on the loopback. See README.md.
+
+services:
+  prmurmur15:
+    image: prbf2/mumble-server:latest
+    container_name: prmurmur15
+    build:
+      context: .
+      dockerfile: mumble-server.Dockerfile
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

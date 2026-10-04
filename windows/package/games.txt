@@ -1,0 +1,7 @@
+# Game servers that get their own channels, one per line:
+#   mumo name | channel title | game server ip:port
+# mumo name: short, unique, latin letters and digits (main0, main1, ...).
+# ip:port: the address players join the game server with; several addresses
+# for one server are separated by commas.
+# Used by setup-channels.bat on an empty server.
+main0 | My PR Server | 1.2.3.4:16567
