@@ -126,6 +126,20 @@ sets the permissions on Root, the game server and the team channels (after
 `all deny`). Reconnect the bot after its first registration. mumo leaves bots
 alone.
 
+### Resetting the rights
+
+`reset_acl.py` puts the ACL of every channel and the team links back to what
+`setup_channels.py` sets on a fresh server, without recreating channels:
+registrations, admins, bans and bots stay. Use it after manual ACL edits or
+when players hear the wrong people. Restart afterwards so mumo gives players
+their groups again.
+
+```bash
+sudo docker exec prmurmur15 python3 /opt/scripts/reset_acl.py --dry-run   # what would change
+sudo docker exec prmurmur15 python3 /opt/scripts/reset_acl.py
+sudo docker restart prmurmur15
+```
+
 ### Cross-team local voice
 
 Normal (local) speech can also reach the enemy team; the PR client fades it
@@ -248,6 +262,7 @@ use the Docker paths.
 | `scripts/check_acl.py` | effective permissions of connected players |
 | `scripts/grant_bot.py` | bot rights: enter, listen, speak everywhere |
 | `scripts/link_teams.py` | cross-team local voice on/off |
+| `scripts/reset_acl.py` | rights and team links back to the setup defaults |
 | `scripts/voice_probe.py` | what the server relays in voice packets |
 | `scripts/hud_dump.py` | what PRMumble gives the HUD (Windows, game PC) |
 | `scripts/entrypoint.sh` | starts server and mumo in the container |

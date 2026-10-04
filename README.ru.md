@@ -121,6 +121,20 @@ sudo docker exec prmurmur15 python3 /opt/scripts/grant_bot.py <ник бота>
 разрешения на корне, в каналах игровых серверов и команд (после `all deny`).
 После первой регистрации бота нужно переподключить. mumo ботов не трогает.
 
+### Сброс прав
+
+`reset_acl.py` возвращает ACL всех каналов и связи команд к тому, что ставит
+`setup_channels.py` на новом сервере, без пересоздания каналов: регистрации,
+админы, баны и боты сохраняются. Пригодится после ручных правок ACL или если
+игроки слышат не тех. После сброса перезапустите контейнер, чтобы mumo снова
+выдал игрокам группы.
+
+```bash
+sudo docker exec prmurmur15 python3 /opt/scripts/reset_acl.py --dry-run   # что изменится
+sudo docker exec prmurmur15 python3 /opt/scripts/reset_acl.py
+sudo docker restart prmurmur15
+```
+
 ### Местный голос между командами
 
 Обычную (местную) речь можно сделать слышной и противнику; клиент PR
@@ -241,6 +255,7 @@ data.old`, затем первая установка.
 | `scripts/check_acl.py` | фактические права подключённых игроков |
 | `scripts/grant_bot.py` | права бота: войти, слушать, говорить везде |
 | `scripts/link_teams.py` | местный голос между командами: вкл/выкл |
+| `scripts/reset_acl.py` | права и связи команд по умолчанию, как при установке |
 | `scripts/voice_probe.py` | что сервер пересылает в голосе |
 | `scripts/hud_dump.py` | что PRMumble отдаёт HUD (Windows, ПК с игрой) |
 | `scripts/entrypoint.sh` | запуск сервера и mumo в контейнере |

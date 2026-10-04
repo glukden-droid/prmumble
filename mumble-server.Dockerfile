@@ -78,7 +78,7 @@ COPY mumo/modules/prbf2.py /opt/mumo/modules/prbf2.py
 RUN rm -rf /opt/mumo/modules-enabled \
     && ln -s /data/mumo/modules-enabled /opt/mumo/modules-enabled
 
-COPY scripts/setup_channels.py scripts/check_acl.py scripts/grant_bot.py scripts/link_teams.py scripts/voice_probe.py /opt/scripts/
+COPY scripts/setup_channels.py scripts/check_acl.py scripts/grant_bot.py scripts/link_teams.py scripts/reset_acl.py scripts/voice_probe.py /opt/scripts/
 COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 

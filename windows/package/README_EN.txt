@@ -57,6 +57,7 @@ of team and squad channels.
   grant-bot.bat                gives a bot rights in every channel
   check-acl.bat                shows what a connected player may do
   link-teams.bat               cross-team local voice on/off (see 10)
+  reset-acl.bat                rights back to the setup defaults (see 10)
   python\                      embedded Python 3.11 with ZeroC Ice
   mumo\                        mumo, its config mumo.ini, module prbf2
   scripts\                     the Python scripts behind the .bat files
@@ -244,6 +245,13 @@ Normal log lines that are NOT errors:
       The PR client tries to join its squad itself; the server refuses
       and mumo moves the player a moment later.
   "Zeroconf ..."           harmless.
+
+Resetting the rights
+  reset-acl.bat puts the rights (ACL) of every channel and the team links
+  back to what setup-channels.bat sets, without recreating channels:
+  registrations, admins, bans and bots stay. Use it after manual ACL edits
+  or when players hear the wrong people. Then restart mumo (close the
+  start.bat window, run start.bat). reset-acl.bat --dry-run only counts.
 
 Cross-team local voice
   Normal (local) speech can also reach the enemy team; the PR client fades

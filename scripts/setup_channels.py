@@ -47,6 +47,62 @@ WRITE, TRAVERSE, ENTER, SPEAK = 0x1, 0x2, 0x4, 0x8
 MUTEDEAFEN, MOVE, MAKECHANNEL = 0x10, 0x20, 0x40
 WHISPER, TEXT, MAKETEMP, LISTEN = 0x100, 0x200, 0x400, 0x800
 REGISTER, SELFREGISTER = 0x40000, 0x80000
+BOT_ALLOW = TRAVERSE | ENTER | SPEAK | MUTEDEAFEN | WHISPER | TEXT | LISTEN
+
+
+def rules(M, kind, gname=None, squad=None, games=()):
+    """ACL entries and group definitions of one channel kind.
+
+    Shared with scripts/reset_acl.py, so a reset gives exactly the rights a
+    fresh setup gives. kind: root, lobby, game, team, commander, squad.
+    """
+    def acl(group, allow=0, deny=0, here=True, sub=True):
+        return M.ACL(applyHere=here, applySubs=sub, inherited=False,
+                     userid=-1, group=group, allow=allow, deny=deny)
+
+    def group(name):
+        return M.Group(name=name, inherited=False, inherit=True,
+                       inheritable=True, add=[], remove=[], members=[])
+
+    if kind == "root":
+        # admins manage everything; nobody talks in Root itself,
+        # self-registration is off
+        return ([acl("admin", allow=WRITE),
+                 acl("admin", allow=REGISTER),
+                 acl("all", deny=SPEAK | WHISPER, sub=False),
+                 acl("all", deny=SPEAK | WHISPER | SELFREGISTER),
+                 acl("bots", allow=BOT_ALLOW)],
+                [group("admin"), group("bots"), group("bf2_linked")]
+                + [group("bf2_%s_game" % g) for g in games])
+    if kind == "lobby":
+        return [acl("all", allow=SPEAK | WHISPER | TEXT)], []
+    if kind == "game":
+        return ([acl("~bf2_%s_admin" % gname,
+                     allow=MAKECHANNEL | MOVE | MUTEDEAFEN | TRAVERSE),
+                 acl("all", deny=SPEAK | WHISPER, sub=False),
+                 acl("bots", allow=BOT_ALLOW, sub=False)], [])
+    if kind == "team":
+        return ([
+            # nobody enters, talks or listens unless mumo put them here
+            acl("all", deny=TRAVERSE | ENTER | SPEAK | MAKECHANNEL
+                | WHISPER | TEXT | LISTEN | MAKETEMP),
+            acl("~bf2_%s_game" % gname, allow=SPEAK | TEXT),
+            acl("~bf2_%s_game" % gname, allow=TRAVERSE | WHISPER, sub=False),
+            acl("~bf2_team", allow=TRAVERSE | WHISPER, sub=False),
+            acl("~bf2_%s_admin" % gname, allow=MOVE | MUTEDEAFEN | TRAVERSE),
+            # bots (scripts/grant_bot.py) may enter, listen and speak
+            acl("bots", allow=BOT_ALLOW),
+        ], [group("bf2_team"), group("bf2_commander"), group("bf2_squad_leader")]
+           + [group("bf2_%s_squad" % s) for s in SQUADS]
+           + [group("bf2_%s_squad_leader" % s) for s in SQUADS])
+    if kind == "commander":
+        return ([acl("~bf2_commander", allow=TRAVERSE | WHISPER, sub=False),
+                 acl("~bf2_squad_leader", allow=WHISPER, sub=False)], [])
+    if kind == "squad":
+        return ([acl("~bf2_%s_squad" % squad, allow=TRAVERSE | WHISPER, sub=False),
+                 acl("~bf2_commander", allow=TRAVERSE | WHISPER, sub=False),
+                 acl("~bf2_squad_leader", allow=WHISPER, sub=False)], [])
+    raise ValueError(kind)
 
 
 def main():
@@ -89,27 +145,10 @@ def main():
         sys.exit("setup: server already has %d channels; use an empty "
                  "database or pass --force to add anyway" % len(existing))
 
-    def acl(group, allow=0, deny=0, here=True, sub=True):
-        return M.ACL(applyHere=here, applySubs=sub, inherited=False,
-                     userid=-1, group=group, allow=allow, deny=deny)
-
-    def group(name):
-        return M.Group(name=name, inherited=False, inherit=True,
-                       inheritable=True, add=[], remove=[], members=[])
-
-    # Root: admins manage everything; nobody talks in Root itself,
-    # self-registration is off.
-    srv.setACL(0, [
-        acl("admin", allow=WRITE),
-        acl("admin", allow=REGISTER),
-        acl("all", deny=SPEAK | WHISPER, sub=False),
-        acl("all", deny=SPEAK | WHISPER | SELFREGISTER),
-        acl("bots", allow=TRAVERSE | ENTER | SPEAK | MUTEDEAFEN | WHISPER | TEXT | LISTEN),
-    ], [group("admin"), group("bots"), group("bf2_linked")]
-       + [group("bf2_%s_game" % g[0]) for g in GAMES], True)
+    srv.setACL(0, *rules(M, "root", games=[g[0] for g in GAMES]), True)
 
     lobby = srv.addChannel("Lobby", 0)
-    srv.setACL(lobby, [acl("all", allow=SPEAK | WHISPER | TEXT)], [], True)
+    srv.setACL(lobby, *rules(M, "lobby"), True)
     games_root = srv.addChannel("PR BF2 Game Servers", 0)
 
     ini = configparser.ConfigParser()
@@ -123,41 +162,16 @@ def main():
         # bf2_<game>_game group there
         gsec["base"] = "0"
         gsec["left"] = str(gch)
-        srv.setACL(gch, [
-            acl("~bf2_%s_admin" % gname,
-                allow=MAKECHANNEL | MOVE | MUTEDEAFEN | TRAVERSE),
-            acl("all", deny=SPEAK | WHISPER, sub=False),
-            acl("bots", allow=TRAVERSE | ENTER | SPEAK | MUTEDEAFEN | WHISPER | TEXT
-                | LISTEN, sub=False),
-        ], [], True)
+        srv.setACL(gch, *rules(M, "game", gname), True)
 
         for team, tname in (("opfor", "Team 1"), ("blufor", "Team 2")):
             tch = srv.addChannel(tname, gch)
             gsec[team] = str(tch)
-            srv.setACL(tch, [
-                # nobody enters, talks or listens unless mumo put them here
-                acl("all", deny=TRAVERSE | ENTER | SPEAK | MAKECHANNEL
-                    | WHISPER | TEXT | LISTEN | MAKETEMP),
-                acl("~bf2_%s_game" % gname, allow=SPEAK | TEXT),
-                acl("~bf2_%s_game" % gname, allow=TRAVERSE | WHISPER,
-                    sub=False),
-                acl("~bf2_team", allow=TRAVERSE | WHISPER, sub=False),
-                acl("~bf2_%s_admin" % gname,
-                    allow=MOVE | MUTEDEAFEN | TRAVERSE),
-                # bots (scripts/grant_bot.py) may enter, listen and speak
-                acl("bots", allow=TRAVERSE | ENTER | SPEAK | MUTEDEAFEN | WHISPER | TEXT
-                    | LISTEN),
-            ], [group("bf2_team"), group("bf2_commander"),
-                group("bf2_squad_leader")]
-               + [group("bf2_%s_squad" % s) for s in SQUADS]
-               + [group("bf2_%s_squad_leader" % s) for s in SQUADS], True)
+            srv.setACL(tch, *rules(M, "team", gname), True)
 
             cch = srv.addChannel("Commander", tch)
             gsec["%s_commander" % team] = str(cch)
-            srv.setACL(cch, [
-                acl("~bf2_commander", allow=TRAVERSE | WHISPER, sub=False),
-                acl("~bf2_squad_leader", allow=WHISPER, sub=False),
-            ], [], True)
+            srv.setACL(cch, *rules(M, "commander"), True)
             cstate = srv.getChannelState(cch)
             cstate.position = -1          # Commander on top
             srv.setChannelState(cstate)
@@ -168,12 +182,7 @@ def main():
                                      tch)
                 gsec["%s_%s_squad" % (team, s)] = str(sch)
                 gsec["%s_%s_squad_leader" % (team, s)] = str(sch)
-                srv.setACL(sch, [
-                    acl("~bf2_%s_squad" % s, allow=TRAVERSE | WHISPER,
-                        sub=False),
-                    acl("~bf2_commander", allow=TRAVERSE | WHISPER, sub=False),
-                    acl("~bf2_squad_leader", allow=WHISPER, sub=False),
-                ], [], True)
+                srv.setACL(sch, *rules(M, "squad", squad=s), True)
                 links.append(sch)
 
             # The team channel is linked to its Commander and squad channels

@@ -83,7 +83,7 @@ jobs:
           $exe = Get-ChildItem build -Filter mumble-server.exe -Recurse | Select-Object -First 1
           Copy-Item $exe.FullName $dist
           Copy-Item mumble/src/murmur/MumbleServer.ice $dist
-          Copy-Item scripts/setup_channels.py, scripts/grant_bot.py, scripts/check_acl.py, scripts/link_teams.py "$dist/scripts"
+          Copy-Item scripts/setup_channels.py, scripts/grant_bot.py, scripts/check_acl.py, scripts/link_teams.py, scripts/reset_acl.py "$dist/scripts"
 
           # embedded Python with ZeroC Ice
           Invoke-WebRequest $env:PYTHON_EMBED -OutFile py.zip
