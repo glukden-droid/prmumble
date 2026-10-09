@@ -108,6 +108,9 @@ channels (Listen) and temporary channels are denied to everyone except the
 `admin` and `bots` groups. Channel listeners are enabled
 (`listenersperchannel=-1`), so the 1.3 client shows a privacy warning.
 
+As in PRMurmur, nobody talks in the Lobby (text chat is fine); only
+admins and bots may speak there.
+
 `not allowed to Enter in Squad N` lines in the server log are normal: the PR
 client tries to join its squad itself, the server refuses, mumo moves it.
 

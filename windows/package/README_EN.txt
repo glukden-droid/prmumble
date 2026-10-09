@@ -104,7 +104,8 @@ Step 3 - create the channels
   With the server still running, run setup-channels.bat. It creates:
 
       Root
-        Lobby                       where players land on connect
+        Lobby                       where players land on connect; only
+                                    admins and bots may speak there
         PR BF2 Game Servers
           <channel title>           one per line of games.txt
             Team 1                  (opfor)

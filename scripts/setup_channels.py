@@ -75,7 +75,11 @@ def rules(M, kind, gname=None, squad=None, games=()):
                 [group("admin"), group("bots"), group("bf2_linked")]
                 + [group("bf2_%s_game" % g) for g in games])
     if kind == "lobby":
-        return [acl("all", allow=SPEAK | WHISPER | TEXT)], []
+        # as in PRMurmur: nobody talks in the Lobby (text chat is fine);
+        # only bots and admins may speak there
+        return ([acl("all", deny=SPEAK | WHISPER),
+                 acl("admin", allow=SPEAK | WHISPER | TEXT),
+                 acl("bots", allow=BOT_ALLOW)], [])
     if kind == "game":
         return ([acl("~bf2_%s_admin" % gname,
                      allow=MAKECHANNEL | MOVE | MUTEDEAFEN | TRAVERSE),
