@@ -62,15 +62,47 @@ def main():
             print("%-8s team channels %d/%d not found, skipped" % (name, t1, t2))
             continue
         title = chans[chans[t1].parent].name if chans[t1].parent in chans else "?"
-        state = srv.getChannelState(t1)
-        linked = t2 in state.links
-        if action != "status":
-            want = action == "on"
-            if want != linked:
-                state.links = ([l for l in state.links if l != t2] + ([t2] if want else []))
-                srv.setChannelState(state)
-                linked = want
-        print("%-8s %-40s cross-team local voice: %s" % (name, title[:40], "ON" if linked else "off"))
+
+        # every channel of each team subtree (team, commander, squads, ...)
+        def subtree(root):
+            out, todo = set(), [root]
+            while todo:
+                c = todo.pop()
+                out.add(c)
+                todo += [x for x, ch in chans.items() if ch.parent == c]
+            return out
+        side1, side2 = subtree(t1), subtree(t2)
+
+        # any link from Team 1's side to Team 2's side counts - also the
+        # manual ones set in a client (e.g. Team 2 <-> Team 1/Squad 1, as on
+        # the old PRMurmur), not only Team 1 <-> Team 2
+        def cross_links():
+            found = []
+            for c in side1:
+                for l in srv.getChannelState(c).links:
+                    if l in side2:
+                        found.append((c, l))
+            return found
+
+        found = cross_links()
+        if action == "off":
+            for c, _ in found:
+                st = srv.getChannelState(c)
+                st.links = [l for l in st.links if l not in side2]
+                srv.setChannelState(st)
+            found = cross_links()
+        elif action == "on" and not found:
+            st = srv.getChannelState(t1)
+            st.links = list(st.links) + [t2]
+            srv.setChannelState(st)
+            found = cross_links()
+
+        def label(c, team, tname):
+            return tname if c == team else "%s/%s" % (tname, chans[c].name)
+        detail = ", ".join("%s <-> %s" % (label(a, t1, chans[t1].name), label(b, t2, chans[t2].name))
+                           for a, b in found)
+        print("%-8s %-40s cross-team local voice: %s%s" % (
+            name, title[:40], "ON" if found else "off", "  (" + detail + ")" if found else ""))
     ic.destroy()
 
 
