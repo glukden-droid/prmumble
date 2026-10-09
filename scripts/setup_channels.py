@@ -84,7 +84,7 @@ def rules(M, kind, gname=None, squad=None, games=()):
         return ([acl("~bf2_%s_admin" % gname,
                      allow=MAKECHANNEL | MOVE | MUTEDEAFEN | TRAVERSE),
                  acl("all", deny=SPEAK | WHISPER, sub=False),
-                 acl("bots", allow=BOT_ALLOW, sub=False)], [])
+                 acl("bots", allow=BOT_ALLOW)], [])
     if kind == "team":
         return ([
             # nobody enters, talks or listens unless mumo put them here
