@@ -183,52 +183,88 @@ server channel, where nobody can talk.
 
 ## 7. Linux installation (Docker)
 
-Requires Docker with compose. Ports: 64740 TCP+UDP open to players, Ice 6504
-on 127.0.0.1 only (the container uses `network_mode: host`).
+Requires Linux with Docker and the compose plugin (`docker compose version`).
+The container uses `network_mode: host`: the server listens on 64740, Ice on
+127.0.0.1:6504 only.
 
-First installation:
+**Step 1 — get the code**
 
 ```bash
-git clone <this repository> prmumble && cd prmumble
+git clone https://github.com/glukden-droid/prmumble.git && cd prmumble
+```
+
+**Step 2 — your game servers.** One line per game server:
+`name | channel title | ip:port` (ip:port = the address players join the
+GAME server with).
+
+```bash
 mkdir -p data && cp config/games.txt data/games.txt
-nano data/games.txt                       # your game servers
-sudo bash scripts/initialsetup.sh         # build, up, channels, restart
-sudo docker exec prmurmur15 mumble-server -ini /data/mumble-server.ini -supw 'password'
+nano data/games.txt
 ```
 
-The Ice secret (`prmurmurpassword` in `data/mumble-server.ini` and
-`data/mumo/mumo.ini`) may stay as it is: Ice listens on 127.0.0.1 only. If
-you change it, use the same value in both files and run
-`sudo docker compose restart`.
-
-Updating the code without losing channels (the build takes 10–20 minutes
-while the server keeps running; downtime only for the restart):
+**Step 3 — build, start, create the channels** (10–20 minutes for the first
+build):
 
 ```bash
-git pull
-sudo docker compose build && sudo docker compose up -d
-sudo docker logs prmurmur15 2>&1 | grep -E "running on|ServerCallback" | tail -2
+sudo bash scripts/initialsetup.sh
 ```
 
-Expect `Murmur 1.5.857 running on ...` and `Added Ice ServerCallback`.
+It ends with `setup: ... channels, map written ...` and `createchannel: done`.
 
-Start over (new channels): `sudo docker compose down && sudo mv data
-data.old`, then the first installation again.
+**Step 4 — SuperUser password**
+
+```bash
+sudo docker exec prmurmur15 mumble-server -ini /data/mumble-server.ini -supw 'YourStrongPassword'
+```
+
+**Step 5 — firewall.** Open 64740 TCP and UDP to players; never open 6504.
+
+```bash
+sudo ufw allow 64740/tcp && sudo ufw allow 64740/udp
+```
+
+**Step 6 — admins.** An admin connects once with his own client and
+registers himself (right click on own name → Register). Then, logged in as
+`SuperUser`: right click on Root → Edit → Groups → `admin` → add him.
+
+**Step 7 — check.** Join one of your game servers with Project Reality; the
+PR Mumble client should move you into your squad channel within seconds.
+
+```bash
+sudo docker logs prmurmur15 2>&1 | grep -E "running on|ServerCallback" | tail -2
+sudo docker exec prmurmur15 python3 /opt/scripts/check_acl.py <part of your nick>
+```
+
+Optional: bots (section 4), cross-team local voice (section 4).
+
+**Day-to-day**
+
+| Task | Command |
+|---|---|
+| status / logs | `sudo docker ps`, `sudo docker logs -f prmurmur15`, `sudo tail -f data/logs/mumo.log` |
+| restart | `sudo docker compose restart` |
+| stop / start | `sudo docker compose down` / `sudo docker compose up -d` |
+| update the code | `git pull && sudo docker compose build && sudo docker compose up -d` |
+| rights back to defaults | `sudo docker exec prmurmur15 python3 /opt/scripts/reset_acl.py && sudo docker restart prmurmur15` |
+| start over (new channels) | `sudo docker compose down && sudo mv data data.old`, then steps 2–6 |
+| backup | copy `data/` (database, configs, logs) |
 
 Notes:
+- the Ice secret (`prmurmurpassword` in `data/mumble-server.ini` and
+  `data/mumo/mumo.ini`) may stay: Ice listens on 127.0.0.1 only. If you change
+  it, change both files the same way and restart;
 - the container hands `/data` to the `mumble-server` user (uid 101); edit
   files in `data/` from the host with `sudo`;
-- the Ice port in `data/mumble-server.ini` and `data/mumo/mumo.ini` must
-  match, otherwise mumo logs `Server refused connection` and the container
-  keeps restarting;
-- all state is in `data/`: database, configs, logs — that is the backup.
+- if the Ice ports in the two files differ, mumo logs `Server refused
+  connection` and the container keeps restarting;
+- `data/` is not in git; `git pull` never touches it.
 
 ## 8. Windows
 
 Archive `PRMumble-Server-1.5.857-win64.zip`: the same server with the PR
 patch, embedded Python 3.11 with Ice, mumo with prbf2, scripts and `.bat`
 files (`start`, `stop`, `setup-channels`, `grant-bot`, `check-acl`,
-`set-superuser-password`). Nothing to install. The guide is inside:
+`link-teams`, `reset-acl`, `set-superuser-password`). Nothing to install. The guide is inside:
 `README_EN.txt` and `README_RU.txt`.
 
 Download: [Releases](../../releases) (`PRMumble-Server-1.5.857-win64.zip`).
