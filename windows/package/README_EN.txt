@@ -145,10 +145,12 @@ machine, port 64740 - the same way as with your previous Mumble server.
 
 If you run a different port, change port= in mumble-server.ini.
 
-realityconfig_admin.py on the game server: mum_mumbleSecret can stay as
-it is. The PR identity password check is switched off on this server
-(prbf2.ini has an empty secret) because the PR client does not relay a
-matching password; the old PRMurmur did not verify it successfully either.
+Identity check: put the value of mum_mumbleSecret from realityconfig_admin.py
+(the same on ALL your game servers) into secret.txt next to games.txt
+before setup-channels.bat, or later as "secret = <value>" in
+mumo\modules-enabled\prbf2.ini and restart mumo. Then players who are not
+on your game servers are moved out of the team/squad channels within a
+minute or two. Empty secret = check off.
 
 
 6. FIREWALL
@@ -316,8 +318,9 @@ Players are not moved into squad channels
      ) - it contains {"ipport":"x.x.x.x:port"}. Put exactly that into
      ipport_filter of the matching [gN] section in prbf2.ini (several
      values separated by commas) and restart mumo.
-  3. "Failed verifying identity": prbf2.ini has a non-empty secret. Set
-     "secret =" (empty) and restart mumo.
+  3. "Failed verifying identity": secret in prbf2.ini differs from
+     mum_mumbleSecret of that game server (or the server was started before
+     it was set). Make them equal, or "secret =" (empty) to switch off.
 
 Players cannot talk / microphone shows as muted by the server
   - A player in the game server channel (above Team 1/2) cannot talk:

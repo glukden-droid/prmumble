@@ -147,10 +147,12 @@ C:\PRMumble
 
 Если нужен другой порт, измените port= в mumble-server.ini.
 
-realityconfig_admin.py на игровом сервере: mum_mumbleSecret можно оставить
-как есть. Проверка пароля identity PR на этом сервере выключена (в
-prbf2.ini пустой secret), потому что клиент PR не передаёт совпадающий
-пароль; старый PRMurmur тоже не мог его успешно проверить.
+Проверка подписи: значение mum_mumbleSecret из realityconfig_admin.py
+(одинаковое на ВСЕХ ваших игровых серверах) положите в secret.txt рядом с
+games.txt до setup-channels.bat, или позже впишите "secret = <значение>" в
+mumo\modules-enabled\prbf2.ini и перезапустите mumo. Тогда игроков, которых
+нет на ваших серверах, mumo за минуту-две выводит из каналов команд и
+отрядов. Пустой secret - проверка выключена.
 
 
 6. БРАНДМАУЭР
@@ -320,8 +322,9 @@ start.bat: "The server did not open its Ice port"
      ) - внутри {"ipport":"x.x.x.x:порт"}. Впишите ровно это значение в
      ipport_filter нужной секции [gN] в prbf2.ini (несколько значений через
      запятую) и перезапустите mumo.
-  3. "Failed verifying identity": в prbf2.ini непустой secret. Сделайте
-     "secret =" (пусто) и перезапустите mumo.
+  3. "Failed verifying identity": secret в prbf2.ini не совпадает с
+     mum_mumbleSecret этого игрового сервера (или сервер запущен до того,
+     как его задали). Сделайте одинаковыми или "secret =" (пусто).
 
 Игроки не могут говорить / микрофон показан заглушённым сервером
   - В канале игрового сервера (над Team 1/2) говорить нельзя: туда mumo

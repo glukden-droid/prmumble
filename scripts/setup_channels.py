@@ -29,10 +29,10 @@ OUT = os.environ.get("PRMUMBLE_PRBF2_INI", "/data/mumo/modules-enabled/prbf2.ini
 # (several ip:port separated by commas). Replaces GAMES below when given.
 GAMES_FILE = os.environ.get("PRMUMBLE_GAMES", "")
 SERVER_ID = 1
-# Identity check shared with mum_mumbleSecret on the game servers. Empty =
-# off: the passwords the PR client relays never matched
-# (checked 2026-10-02), so it stays off until that is understood.
-SECRET = ""
+# Identity check: the same value as mum_mumbleSecret in realityconfig_admin.py
+# of the game servers (verified 2026-10-10: the passwords match). Empty = off.
+# Set it with PRMUMBLE_SECRET, or later as "secret =" in prbf2.ini.
+SECRET = os.environ.get("PRMUMBLE_SECRET", "")
 
 # (mumo game name, channel title, game server ip:port)
 GAMES = [

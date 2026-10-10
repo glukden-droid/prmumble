@@ -173,13 +173,25 @@ Python 3 port (`docs/port_prbf2.py`) plus what came up in production:
 
 ## 6. Identity check (secret)
 
-Every 30 s the game server sends the client a one-time password
-`sha1(minute + hash + mum_mumbleSecret)`; the client passes it to Mumble and
-mumo compares it with its `secret`. Checked: the game server computes it
-right, mumo uses the same formula, but the PR client passes different numbers
-to Mumble; the old PRMurmur also only logged `Failed verifying identity`. So
-`secret` is empty. If it is not empty, mumo moves every player into the game
-server channel, where nobody can talk.
+Every 30 s the game server sends each of its players a one-time password
+`sha1(minute + hash + mum_mumbleSecret)`; the PR client passes it to Mumble in
+its identity and mumo checks it with its own `secret`. A player who is not
+on one of your game servers gets no fresh password and is moved out of the
+team/squad channels within a minute or two — even if his client keeps
+sending old game data (e.g. after switching to another server).
+
+Verified 2026-10-10 on a full server: the passwords the clients send match
+what the game server computes, 0 failures.
+
+Use the same value as `mum_mumbleSecret` in `realityconfig_admin.py` of
+**every** game server listed in `games.txt`:
+
+- new installation: put it into `data/secret.txt` before `initialsetup.sh`;
+- running server: `secret = <value>` in `data/mumo/modules-enabled/prbf2.ini`,
+  then `sudo docker restart prmurmur15`.
+
+Empty `secret` switches the check off. Right after joining a player may wait
+up to 30 s in the game server channel until his first password arrives.
 
 ## 7. Linux installation (Docker)
 
@@ -200,6 +212,7 @@ GAME server with).
 ```bash
 mkdir -p data && cp config/games.txt data/games.txt
 nano data/games.txt
+echo 'value of mum_mumbleSecret' > data/secret.txt   # see section 6
 ```
 
 **Step 3 — build, start, create the channels** (10–20 minutes for the first

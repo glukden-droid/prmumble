@@ -24,8 +24,12 @@ for _ in $(seq 1 30); do
 done
 
 games=()
+if [[ -f "$HERE/data/secret.txt" ]]; then
+    games+=(-e "PRMUMBLE_SECRET=$(tr -d '\r\n' < "$HERE/data/secret.txt")")
+    echo "createchannel: identity secret from data/secret.txt"
+fi
 if [[ -f "$HERE/data/games.txt" ]]; then
-    games=(-e PRMUMBLE_GAMES=/data/games.txt)
+    games+=(-e PRMUMBLE_GAMES=/data/games.txt)
     echo "createchannel: game servers from data/games.txt"
 fi
 
