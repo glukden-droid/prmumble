@@ -91,8 +91,19 @@ proto, n4 = re.subn(
     "\t// PR: in-game position sent by the PR client, relayed to the team\n"
     "\trepeated float position = 20;", proto)
 
-if (n1, n2, n3, n4) != (1, 1, 1, 1):
-    sys.exit("patch_identity: expected 1 of each replacement, got %d %d %d %d" % (n1, n2, n3, n4))
+# 4. Server::clearACLCache (runs on every group change) broadcasts
+#    suppress=true even when the user just regained Speak, so the clients
+#    show him muted. Send the real value.
+server_path = sys.argv[1].rstrip("/") + "/src/murmur/Server.cpp"
+server = open(server_path, encoding="utf-8").read()
+server, n5 = re.subn(
+    r"(user->bSuppress = !maySpeak;\s*mpus\.Clear\(\);\s*mpus\.set_session\(user->uiSession\);\s*)"
+    r"mpus\.set_suppress\(true\);",
+    r"\1mpus.set_suppress(user->bSuppress); // PR: real value, was always true", server)
+
+if (n1, n2, n3, n4, n5) != (1, 1, 1, 1, 1):
+    sys.exit("patch_identity: expected 1 of each replacement, got %d %d %d %d %d" % (n1, n2, n3, n4, n5))
 open(proto_path, "w", encoding="utf-8").write(proto)
 open(path, "w", encoding="utf-8").write(src)
+open(server_path, "w", encoding="utf-8").write(server)
 print("patch_identity: Messages.cpp patched")

@@ -235,35 +235,29 @@ class prbf2(MumoModule):
             for cid, group in sorted(oldgroups - newgroups):
                 server.removeUserFromGroup(cid, session, group)
                 log.debug("Removed '%s' from group %s in %d", newstate.name, group, cid)
-            groupschanged = oldgroups != newgroups
 
             if oli and not nli:
                 log.debug("User '%s' (%d|%d) on server %d no longer linked", newstate.name, newstate.session, newstate.userid, sid)
                 server.removeUserFromGroup(0, session, "bf2_linked")
                     
             if newstate.channel >= 0:
-                # Make the clients' view of "suppress" right. setState applies
-                # newstate.suppress (from a possibly stale callback state), and
-                # after a group change the server may have broadcast a wrong
-                # suppress=true (see above).
+                # suppress follows Speak in the target channel. The server
+                # (patched, docs/patch_identity.py) broadcasts the real value
+                # after group changes; setState applies newstate.suppress,
+                # which may come from a stale callback state, so set it here
+                # once - no muted/unmuted pair in every client's log.
                 moved = newoldchannel != newstate.channel
-                mayspeak = server.hasPermission(session, newstate.channel, 0x8)
+                suppress = not server.hasPermission(session, newstate.channel, 0x8)
                 if moved:
                     if ng == None:
                         log.debug("Moving '%s' leaving %s to channel %s", newstate.name, og or ogcfgname, channame)
                     else:
                         log.debug("Moving '%s' @ %s to channel %s", newstate.name, ng or ngcfgname, channame)
-                    # suppress=True then the channel change itself recomputes
-                    # it from Speak and broadcasts the real value
-                    newstate.suppress = True
+                    newstate.suppress = suppress
                     server.setState(newstate)
-                elif groupschanged or newstate.suppress == mayspeak:
-                    log.debug("Syncing suppress of '%s' in channel %d: %s", newstate.name, newstate.channel, not mayspeak)
-                    if mayspeak:
-                        # set + clear so every client gets suppress=false
-                        newstate.suppress = True
-                        server.setState(newstate)
-                    newstate.suppress = not mayspeak
+                elif newstate.suppress != suppress:
+                    log.debug("Syncing suppress of '%s' in channel %d: %s", newstate.name, newstate.channel, suppress)
+                    newstate.suppress = suppress
                     server.setState(newstate)
         except:
             log.exception("Exception raised while updating '%s'", newstate.name)
