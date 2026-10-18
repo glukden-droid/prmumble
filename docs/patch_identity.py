@@ -101,8 +101,17 @@ server, n5 = re.subn(
     r"mpus\.set_suppress\(true\);",
     r"\1mpus.set_suppress(user->bSuppress); // PR: real value, was always true", server)
 
-if (n1, n2, n3, n4, n5) != (1, 1, 1, 1, 1):
-    sys.exit("patch_identity: expected 1 of each replacement, got %d %d %d %d %d" % (n1, n2, n3, n4, n5))
+# 5. Radio is not positional. Squad radio, SL and commander are whispers
+#    (PR shortcuts); with the position in the packet the PR client fades them
+#    with distance like local voice. Whisper and shout go without position,
+#    so only normal speech (local voice, 70 m) is positional.
+server, n6 = re.subn(
+    r"(buffer\.addReceiver\(\*u, \*pDst, Mumble::Protocol::AudioContext::(?:SHOUT|WHISPER),\s*)"
+    r"audioData\.containsPositionalData\)",
+    r"\1false) // PR: radio is not positional", server)
+
+if (n1, n2, n3, n4, n5, n6) != (1, 1, 1, 1, 1, 2):
+    sys.exit("patch_identity: unexpected replacement counts %d %d %d %d %d %d" % (n1, n2, n3, n4, n5, n6))
 open(proto_path, "w", encoding="utf-8").write(proto)
 open(path, "w", encoding="utf-8").write(src)
 open(server_path, "w", encoding="utf-8").write(server)
