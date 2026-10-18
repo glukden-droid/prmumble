@@ -107,8 +107,8 @@ server, n5 = re.subn(
 #    so only normal speech (local voice, 70 m) is positional.
 server, n6 = re.subn(
     r"(buffer\.addReceiver\(\*u, \*pDst, Mumble::Protocol::AudioContext::(?:SHOUT|WHISPER),\s*)"
-    r"audioData\.containsPositionalData\)",
-    r"\1false) // PR: radio is not positional", server)
+    r"audioData\.containsPositionalData\);",
+    r"\1false); // PR: radio is not positional", server)
 
 if (n1, n2, n3, n4, n5, n6) != (1, 1, 1, 1, 1, 2):
     sys.exit("patch_identity: unexpected replacement counts %d %d %d %d %d %d" % (n1, n2, n3, n4, n5, n6))
