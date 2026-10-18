@@ -42,6 +42,7 @@ import re
 import sys
 import time
 import struct
+import threading
 
 
 import json
@@ -111,10 +112,18 @@ class prbf2(MumoModule):
                     }
     
     id_to_squad_name = ["no", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth"]
-    
+
+    # A change of team/squad/role within the same game is applied only if the
+    # client still reports it after this many seconds. The PR client briefly
+    # reports another squad (often squad 0) on death/respawn; without the
+    # delay players were thrown to No Squad and back.
+    DEBOUNCE = 3.0
+
     def __init__(self, name, manager, configuration = None):
         MumoModule.__init__(self, name, manager, configuration)
         self.murmur = manager.getMurmurModule()
+        self.pending = {}               # {(serverid, session): squad key waited for}
+        self.lock = threading.RLock()   # handle() runs from callbacks and timers
 
     def connected(self):
         cfg = self.cfg()
@@ -276,7 +285,32 @@ class prbf2(MumoModule):
             groups.add((team, "bf2_squad_leader"))
         return groups
 
-    def handle(self, server, state):
+    @staticmethod
+    def squad_key(state):
+        """(game, team, squad, squad leader, commander) of a parsed state, or None."""
+        if not state or not getattr(state, "parsedcontext", None) or not getattr(state, "parsedidentity", None):
+            return None
+        i = state.parsedidentity
+        return (state.parsedcontext["gamename"], i["team"], i["squad"], i["squad_leader"], i["commander"])
+
+    def recheck(self, server, session, want):
+        """Timer: apply a delayed squad change if the client still reports it."""
+        with self.lock:
+            sid = server.id()
+            if self.pending.get((sid, session)) != want:
+                return  # changed back or replaced meanwhile
+            self.pending.pop((sid, session), None)
+            try:
+                state = server.getState(session)
+            except Exception:
+                return  # user left
+            self.handle(server, state, force=True)
+
+    def handle(self, server, state, force=False):
+        with self.lock:
+            return self._handle(server, state, force)
+
+    def _handle(self, server, state, force):
         def verify(mdict, key, vtype):
             if not isinstance(mdict[key], vtype):
                 raise ValueError("'%s' of invalid type" % key)
@@ -385,8 +419,22 @@ class prbf2(MumoModule):
             except (KeyError, ValueError) as e:
                 log.debug("Invalid identity for %s (%d|%d) on server %d: %s", state.name, state.session, state.userid, sid, repr(e))
 
+        # Delay a team/squad/role change within the same game (see DEBOUNCE);
+        # the old state stays in place meanwhile.
+        old = self.sessions[sid][state.session]
+        before, after = self.squad_key(old), self.squad_key(state)
+        if not force and before and after and before != after and before[0] == after[0]:
+            if self.pending.get((sid, state.session)) != after:
+                self.pending[(sid, state.session)] = after
+                log.debug("Delaying '%s' %s -> %s by %.0f s", state.name, before[1:], after[1:], self.DEBOUNCE)
+                timer = threading.Timer(self.DEBOUNCE, self.recheck, (server, state.session, after))
+                timer.daemon = True
+                timer.start()
+            return
+        self.pending.pop((sid, state.session), None)
+
         # Update state and remember it
-        self.update_state(server, self.sessions[sid][state.session], state)
+        self.update_state(server, old, state)
         self.sessions[sid][state.session] = state
     
     #
@@ -396,6 +444,7 @@ class prbf2(MumoModule):
     def userDisconnected(self, server, state, context = None):
         try:
             sid = server.id()
+            self.pending.pop((sid, state.session), None)
             del self.sessions[sid][state.session]
         except: pass
         try:

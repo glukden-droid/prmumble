@@ -167,6 +167,7 @@ Python 3 port (`docs/port_prbf2.py`) plus what came up in production:
 |---|---|
 | `decodeContext` | Mumble 1.5 hands the plugin context to Ice as base64; undecoded, players counted as "not in game" |
 | groups by difference (`player_groups`) | a new `pass` without a squad change does not touch groups; new groups are added before old ones are removed |
+| 3 s delay for squad/team/role changes (`DEBOUNCE`) | the PR client briefly reports another squad (often 0) on death/respawn; players were thrown to No Squad and back |
 | explicit `suppress` sync | after a move or group change clients get the correct value |
 | `log.exception` instead of `sys.exc_traceback` | gone in Python 3; errors were silently lost |
 | `x2bool` from `config` | moved there in upstream mumo |
